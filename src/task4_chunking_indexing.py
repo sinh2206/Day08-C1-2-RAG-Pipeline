@@ -43,13 +43,15 @@ CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
 # CONFIGURATION — Giải thích lựa chọn của bạn trong comment
 # =============================================================================
 
-# TODO: Chọn chunking strategy và giải thích vì sao
-CHUNK_SIZE = 800        # Vì sao chọn 500? ...
-CHUNK_OVERLAP = 100      # Vì sao chọn 50? ...
-CHUNKING_METHOD = "recursive"  # "recursive" | "markdown_header" | "semantic"
+# Recursive chunking giữ ưu tiên ranh giới đoạn/câu nhưng vẫn bảo đảm giới hạn
+# kích thước, nên phù hợp với corpus Markdown có cấu trúc không đồng nhất.
+CHUNK_SIZE = 800         # Đủ ngữ cảnh cho retrieval nhưng chưa quá dài, tránh pha loãng nội dung.
+CHUNK_OVERLAP = 100      # Chồng lấn 12.5% để không mất ý tại ranh giới giữa hai chunk.
+CHUNKING_METHOD = "recursive"  # Ổn định, nhẹ và không cần gọi embedding để chia đoạn.
 
-# TODO: Chọn embedding model và giải thích
-EMBEDDING_MODEL = "BAAI/bge-m3"  # Vì sao? Multilingual, tốt cho tiếng Việt lẫn tiếng Anh
+# BGE-M3 hỗ trợ đa ngôn ngữ, đặc biệt phù hợp khi corpus và truy vấn có cả
+# tiếng Việt lẫn tiếng Anh; vector 1024 chiều cho chất lượng semantic retrieval tốt.
+EMBEDDING_MODEL = "BAAI/bge-m3"
 EMBEDDING_DIM = 1024
 
 # TODO: Chọn vector store
