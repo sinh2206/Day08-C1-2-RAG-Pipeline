@@ -12,9 +12,6 @@ pinned: false
 # Ngày 8 — RAG Pipeline v2
 
 **Chương 2 | Ngày 8 trong 15**
-
-> Dùng chung chủ đề "University Services" với biến thể K3 của Ngày 7 (`K3_VARIANT.md`), để pipeline Ngày 7 → Ngày 8 nhất quán.
-
 ---
 
 ## Mục Tiêu
