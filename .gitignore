@@ -25,3 +25,8 @@ pageindex_pdfs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test & Vector Store Artifacts
+.playwright-mcp/
+chroma_db/
+
