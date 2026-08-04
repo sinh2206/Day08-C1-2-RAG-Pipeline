@@ -1,174 +1,211 @@
-"""
-Task 6 — Lexical Search Module (BM25).
+"""Task 6 — Lexical Search Module (BM25).
 
-Mặc định sử dụng BM25. Nếu dùng phương pháp khác (TF-IDF, Elasticsearch,
-Weaviate BM25 built-in), hãy giải thích cơ chế trong buổi demo → +5 bonus.
-
-Cài đặt:
-    pip install rank-bm25
-
-BM25 hoạt động thế nào:
-    - Term Frequency (TF): từ xuất hiện nhiều trong document → điểm cao
-    - Inverse Document Frequency (IDF): từ hiếm → quan trọng hơn
-    - Document length normalization: document dài không bị ưu tiên quá mức
-    - Formula: score(q,d) = Σ IDF(qi) * (tf(qi,d) * (k1+1)) / (tf(qi,d) + k1*(1-b+b*|d|/avgdl))
-    - k1=1.5 (term saturation), b=0.75 (length normalization)
+Module nay co the chay doc lap voi corpus truyen vao, va se tu dung chunks cua
+Task 4 khi Task 4 da san sang.  Mot BM25 implementation nho duoc kem theo de
+module van test duoc truoc khi cai ``rank-bm25``.
 """
 
+from __future__ import annotations
+
+import math
 import re
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
-import numpy as np
-from rank_bm25 import BM25Okapi
+from typing import Sequence
+
 
 STANDARDIZED_DIR = Path(__file__).parent.parent / "data" / "standardized"
-
-# List of {'content': str, 'metadata': dict}
 CORPUS: list[dict] = []
-BM25_INDEX = None
+_BM25_INDEX = None
+_INDEXED_CORPUS_ID: int | None = None
 
-
-def load_corpus() -> list[dict]:
-    """
-    Load toàn bộ văn bản từ data/standardized/ (cả legal và news).
-    Tách thành các đoạn văn bản (paragraphs) làm corpus.
-    """
-    global CORPUS
-    if CORPUS:
-        return CORPUS
-
-    corpus = []
-    if STANDARDIZED_DIR.exists():
-        for filepath in STANDARDIZED_DIR.rglob("*.md"):
-            try:
-                text = filepath.read_text(encoding="utf-8", errors="ignore")
-                paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-                for idx, para in enumerate(paragraphs):
-                    if len(para) > 10:
-                        corpus.append({
-                            "content": para,
-                            "metadata": {
-                                "source": filepath.name,
-                                "category": filepath.parent.name,
-                                "chunk_id": idx
-                            }
-                        })
-            except Exception as e:
-                print(f"Error reading {filepath}: {e}")
-
-    if not corpus:
-        corpus = [
-            {
-                "content": "Tuition fees for full time undergraduate students are 30,000,000 VND per semester. Payment methods include bank transfer and online portal.",
-                "metadata": {"source": "tuition_policy.md", "category": "legal", "chunk_id": 0}
-            },
-            {
-                "content": "Scholarship eligibility requires a minimum GPA of 3.6 out of 4.0 and active participation in student activities.",
-                "metadata": {"source": "scholarship.md", "category": "legal", "chunk_id": 0}
-            },
-            {
-                "content": "Dormitory accommodation services provide rooms for first year students with all basic utilities included.",
-                "metadata": {"source": "dorm_policy.md", "category": "legal", "chunk_id": 0}
-            }
-        ]
-
-    CORPUS = corpus
-    return CORPUS
-
-
-import unicodedata
-
-SYNONYMS = {
-    "tuition": ["tuition", "fee", "hoc", "phi", "payment", "thanh", "toan"],
-    "fee": ["tuition", "fee", "hoc", "phi", "payment"],
-    "hoc": ["hoc", "phi", "tuition", "fee", "bong", "scholarship"],
-    "phi": ["hoc", "phi", "tuition", "fee"],
-    "scholarship": ["scholarship", "hoc", "bong"],
-    "dormitory": ["dormitory", "dorm", "ky", "tuc", "xa"],
-    "library": ["library", "thu", "vien", "phong", "hoc"],
+# Query aliases cho cac loi go/ten goi thuong gap trong domain van hoa.
+QUERY_ALIASES = {
+    "xổi đất": "xông đất",
+    "áo năm thân": "áo ngũ thân",
 }
 
 
-def _tokenize(text: str) -> list[str]:
-    """
-    Tokenize text với xử lý chữ thường, loại bỏ dấu tiếng Việt và mở rộng từ đồng nghĩa Việt-Anh.
-    """
-    text_lower = text.lower()
-    raw_tokens = re.findall(r"\w+", text_lower)
-    
-    # Strip accents
-    unaccented = unicodedata.normalize("NFD", text_lower).encode("ascii", "ignore").decode("utf-8")
-    unaccented_tokens = re.findall(r"\w+", unaccented)
-    
-    all_tokens = set(raw_tokens + unaccented_tokens)
-    expanded_tokens = list(all_tokens)
-    
-    for token in list(all_tokens):
-        if token in SYNONYMS:
-            expanded_tokens.extend(SYNONYMS[token])
-            
-    return expanded_tokens
+def normalize_query(text: str) -> str:
+    """Normalize Unicode, lowercase va sua mot so alias da biet."""
+    normalized = unicodedata.normalize("NFC", text).lower().strip()
+    for source, target in QUERY_ALIASES.items():
+        normalized = normalized.replace(source, target)
+    return normalized
+
+
+def tokenize(text: str) -> list[str]:
+    """Tokenize Unicode, giu nguyen dau tieng Viet va bo dau cau."""
+    return re.findall(r"[^\W_]+", normalize_query(text), flags=re.UNICODE)
+
+
+@dataclass
+class _LocalBM25:
+    """BM25Okapi toi gian, dung khi package ``rank_bm25`` chua duoc cai."""
+
+    tokenized_corpus: Sequence[Sequence[str]]
+    k1: float = 1.5
+    b: float = 0.75
+
+    def __post_init__(self) -> None:
+        self.doc_lengths = [len(document) for document in self.tokenized_corpus]
+        self.avgdl = (
+            sum(self.doc_lengths) / len(self.doc_lengths)
+            if self.doc_lengths
+            else 0.0
+        )
+        self.term_frequencies: list[dict[str, int]] = []
+        document_frequencies: dict[str, int] = {}
+
+        for document in self.tokenized_corpus:
+            frequencies: dict[str, int] = {}
+            for token in document:
+                frequencies[token] = frequencies.get(token, 0) + 1
+            self.term_frequencies.append(frequencies)
+            for token in frequencies:
+                document_frequencies[token] = document_frequencies.get(token, 0) + 1
+
+        document_count = len(self.tokenized_corpus)
+        self.idf = {
+            token: math.log(1.0 + (document_count - frequency + 0.5) / (frequency + 0.5))
+            for token, frequency in document_frequencies.items()
+        }
+
+    def get_scores(self, query_tokens: Sequence[str]) -> list[float]:
+        scores: list[float] = []
+        for index, frequencies in enumerate(self.term_frequencies):
+            score = 0.0
+            length = self.doc_lengths[index]
+            length_ratio = length / self.avgdl if self.avgdl else 0.0
+            for token in query_tokens:
+                frequency = frequencies.get(token, 0)
+                if not frequency:
+                    continue
+                denominator = frequency + self.k1 * (1 - self.b + self.b * length_ratio)
+                score += self.idf.get(token, 0.0) * frequency * (self.k1 + 1) / denominator
+            scores.append(score)
+        return scores
+
+
+def load_corpus() -> list[dict]:
+    """Load shared Task 4 chunks; fall back to standardized Markdown files."""
+    try:
+        from .task4_chunking_indexing import chunk_documents, load_documents
+
+        documents = load_documents()
+        if documents:
+            chunks = chunk_documents(documents)
+            if chunks:
+                return chunks
+    except (ImportError, NotImplementedError):
+        pass
+
+    corpus: list[dict] = []
+    for md_file in sorted(STANDARDIZED_DIR.rglob("*.md")):
+        content = md_file.read_text(encoding="utf-8").strip()
+        if not content:
+            continue
+        try:
+            relative_source = str(md_file.relative_to(STANDARDIZED_DIR))
+        except ValueError:
+            relative_source = md_file.name
+        corpus.append(
+            {
+                "content": content,
+                "metadata": {
+                    "source": relative_source,
+                    "type": md_file.parent.name,
+                    "chunk_index": 0,
+                },
+            }
+        )
+    return corpus
+
+
+def set_corpus(corpus: list[dict]) -> None:
+    """Inject corpus (useful for unit tests and integration with Role 3)."""
+    global CORPUS, _BM25_INDEX, _INDEXED_CORPUS_ID
+    CORPUS = list(corpus)
+    _BM25_INDEX = None
+    _INDEXED_CORPUS_ID = None
 
 
 def build_bm25_index(corpus: list[dict]):
-    """
-    Xây dựng BM25 index từ corpus.
+    """Build a BM25 index from ``content`` fields in the supplied corpus."""
+    if not isinstance(corpus, list):
+        raise TypeError("corpus must be a list of dictionaries")
+    tokenized_corpus = []
+    for document in corpus:
+        if not isinstance(document, dict) or "content" not in document:
+            raise ValueError("each corpus item must contain a 'content' field")
+        tokenized_corpus.append(tokenize(str(document["content"])))
 
-    Args:
-        corpus: List of {'content': str, 'metadata': dict}
-    """
-    tokenized_corpus = [_tokenize(doc["content"]) for doc in corpus]
-    bm25 = BM25Okapi(tokenized_corpus)
-    return bm25
+    try:
+        from rank_bm25 import BM25Okapi
+
+        return BM25Okapi(tokenized_corpus)
+    except ImportError:
+        return _LocalBM25(tokenized_corpus)
 
 
-def lexical_search(query: str, top_k: int = 10) -> list[dict]:
-    """
-    Tìm kiếm từ khóa sử dụng BM25.
-
-    Args:
-        query: Câu truy vấn
-        top_k: Số lượng kết quả tối đa
-
-    Returns:
-        List of {
-            'content': str,
-            'score': float,      # BM25 score
-            'metadata': dict
-        }
-        Sorted by score descending.
-    """
-    global CORPUS, BM25_INDEX
-
-    if not CORPUS:
-        load_corpus()
-
-    if BM25_INDEX is None:
-        BM25_INDEX = build_bm25_index(CORPUS)
-
-    tokenized_query = _tokenize(query)
-    if not tokenized_query:
+def lexical_search(
+    query: str, top_k: int = 10, corpus: list[dict] | None = None
+) -> list[dict]:
+    """Return BM25 results sorted by descending score."""
+    if top_k <= 0 or not query or not query.strip():
         return []
 
-    scores = BM25_INDEX.get_scores(tokenized_query)
-    top_indices = np.argsort(scores)[::-1]
+    global CORPUS, _BM25_INDEX, _INDEXED_CORPUS_ID
+    if corpus is not None:
+        active_corpus = corpus
+        index = build_bm25_index(active_corpus)
+    else:
+        if not CORPUS:
+            CORPUS = load_corpus()
+        active_corpus = CORPUS
+        corpus_id = id(CORPUS)
+        if _BM25_INDEX is None or _INDEXED_CORPUS_ID != corpus_id:
+            _BM25_INDEX = build_bm25_index(active_corpus)
+            _INDEXED_CORPUS_ID = corpus_id
+        index = _BM25_INDEX
+
+    if not active_corpus:
+        return []
+
+    scores = index.get_scores(tokenize(query))
+    ranked_indices = sorted(
+        range(len(active_corpus)), key=lambda idx: (-float(scores[idx]), idx)
+    )
 
     results = []
-    for idx in top_indices:
-        results.append({
-            "content": CORPUS[idx]["content"],
-            "score": float(scores[idx]),
-            "metadata": CORPUS[idx]["metadata"]
-        })
+    for idx in ranked_indices:
+        score = float(scores[idx])
+        if score <= 0:
+            continue
+        document = active_corpus[idx]
+        results.append(
+            {
+                "content": document["content"],
+                "score": score,
+                "metadata": dict(document.get("metadata", {})),
+            }
+        )
         if len(results) >= top_k:
             break
-
-    results.sort(key=lambda x: x["score"], reverse=True)
     return results
 
 
 if __name__ == "__main__":
-    results = lexical_search("tuition fee payment methods", top_k=5)
-    for r in results:
-        safe_content = r['content'][:100].encode('ascii', errors='replace').decode('ascii')
-        print(f"[{r['score']:.3f}] {safe_content}...")
+    demo_corpus = [
+        {
+            "content": "Tục xông đất là phong tục đón người đầu tiên đến nhà trong năm mới.",
+            "metadata": {"source": "phong-tuc-tet.md", "type": "custom", "chunk_index": 0},
+        },
+        {
+            "content": "Áo ngũ thân nam có năm thân áo, cổ đứng và năm khuy.",
+            "metadata": {"source": "ao-ngu-than.md", "type": "costume", "chunk_index": 0},
+        },
+    ]
+    for result in lexical_search("chi tiết áo ngũ thân nam", top_k=5, corpus=demo_corpus):
+        print(f"[{result['score']:.3f}] {result['content']}")
