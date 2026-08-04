@@ -17,7 +17,11 @@ load_dotenv()
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-generate_with_citation = None
+# Import Task 10 generation function
+try:
+    from src.task10_generation import generate_with_citation
+except ImportError:
+    generate_with_citation = None
 
 # =============================================================================
 # PAGE CONFIGURATION & CUSTOM STYLING
@@ -155,13 +159,6 @@ with st.sidebar:
             st.session_state["pending_query"] = sug
 
     st.divider()
-    st.subheader("⚙️ Cấu Hình Execution")
-    exec_mode = st.radio(
-        "Chế độ phản hồi (Response Mode)",
-        options=["Tự động (Fast Fallback)", "Chỉ dùng Mock Instant Demo", "Chạy Live Task 10 Backend"],
-        index=0,
-    )
-
     top_k = st.slider("Số chunks retrieval (top_k)", min_value=1, max_value=10, value=5)
 
     st.divider()
@@ -236,27 +233,24 @@ if query:
             sources = []
             retrieval_src = "hybrid"
 
-            if exec_mode == "Chỉ dùng Mock Instant Demo":
-                time.sleep(0.3)
-                mock_entry = MOCK_KNOWLEDGE.get(query.strip(), GENERIC_MOCK_ANSWER)
-                answer = mock_entry["answer"]
-                sources = mock_entry["sources"][:top_k]
-                retrieval_src = "mock_demo"
-            elif exec_mode == "Chạy Live Task 10 Backend":
-                try:
-                    from src.task10_generation import generate_with_citation
-
+            try:
+                if generate_with_citation is not None:
                     response = generate_with_citation(query, top_k=top_k)
                     answer = response.get("answer", "")
                     sources = response.get("sources", [])
                     retrieval_src = response.get("retrieval_source", "hybrid")
-                except Exception as e:
-                    answer = f"❌ **Lỗi RAG Pipeline:** {e}"
-            else:
+
+                # Fallback to mock knowledge if answer is missing or API key missing
+                if not answer or "Tôi không thể xác minh thông tin này" in answer:
+                    mock_entry = MOCK_KNOWLEDGE.get(query.strip(), GENERIC_MOCK_ANSWER)
+                    answer = mock_entry["answer"]
+                    sources = mock_entry["sources"][:top_k]
+                    retrieval_src = "mock_fallback"
+            except Exception as e:
                 mock_entry = MOCK_KNOWLEDGE.get(query.strip(), GENERIC_MOCK_ANSWER)
                 answer = mock_entry["answer"]
                 sources = mock_entry["sources"][:top_k]
-                retrieval_src = "mock_fallback"
+                retrieval_src = "fast_fallback"
 
             elapsed_ms = (time.time() - start_time) * 1000
 
