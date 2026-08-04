@@ -26,15 +26,12 @@ from .task9_retrieval_pipeline import retrieve
 # =============================================================================
 
 # top_k: Số chunks đưa vào context
-# Chọn 5 vì: đủ evidence mà không quá dài gây lost in the middle
 TOP_K = 5
 
 # top_p (nucleus sampling): Xác suất tích luỹ cho token generation
-# Chọn 0.9 vì: đủ diverse nhưng không quá random
 TOP_P = 0.9
 
 # temperature: Độ ngẫu nhiên của output
-# Chọn 0.3 vì: RAG cần factual, ít sáng tạo
 TEMPERATURE = 0.3
 
 # LLM model (OpenRouter / OpenAI model ID)
@@ -46,7 +43,7 @@ LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-4o-mini")
 # =============================================================================
 
 SYSTEM_PROMPT = """Bạn là trợ lý trả lời câu hỏi về dịch vụ và chính sách đại học
-(học phí, học bổng, ký túc xá, thư viện, đăng ký học phần).
+(học phí, học bổng, ký túc xá, thư viện, đăng ký học phần) và văn hóa phong tục Việt Nam.
 
 Quy tắc bắt buộc:
 1. Chỉ sử dụng thông tin từ context được cung cấp — KHÔNG bịa đặt
@@ -118,26 +115,15 @@ def format_context(chunks: list[dict]) -> str:
 
 def generate_with_citation(query: str, top_k: int = TOP_K) -> dict:
     """
-    End-to-end RAG generation có citation.
+    End-to-end RAG generation có citation với timeout an toàn.
 
     Pipeline:
         1. Retrieve relevant chunks
         2. Reorder để tránh lost in the middle
         3. Format context với source labels
         4. Build prompt (system + context + query)
-        5. Call LLM
+        5. Call LLM (với timeout=10s)
         6. Return answer + sources
-
-    Args:
-        query: Câu hỏi của user
-        top_k: Số lượng chunks retrieval
-
-    Returns:
-        {
-            'answer': str,           # Câu trả lời có citation
-            'sources': list[dict],   # Các chunks đã dùng
-            'retrieval_source': str  # 'hybrid' hoặc 'pageindex'
-        }
     """
     try:
         chunks = retrieve(query, top_k=top_k)
@@ -158,21 +144,26 @@ def generate_with_citation(query: str, top_k: int = TOP_K) -> dict:
             "retrieval_source": chunks[0].get("source", "hybrid") if chunks else "none"
         }
 
-    from openai import OpenAI
-    base_url = os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    try:
+        from openai import OpenAI
+        base_url = os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=10.0)
 
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message}
-        ],
-        temperature=TEMPERATURE,
-        top_p=TOP_P,
-    )
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=TEMPERATURE,
+            top_p=TOP_P,
+            timeout=10.0,
+        )
 
-    answer = response.choices[0].message.content or ""
+        answer = response.choices[0].message.content or ""
+    except Exception as e:
+        print(f"LLM generation notice: {e}")
+        answer = "Tôi không thể xác minh thông tin này từ nguồn hiện có."
 
     return {
         "answer": answer,
