@@ -1,0 +1,8 @@
+# Chuong trinh Trao doi Sinh vien Quoc te va Hoc bong Global Mobility
+
+**Source:** https://daihoc.edu.vn/tin-tuc/trao-doi-sinh-vien-quoc-te
+**Crawled:** 2026-08-04T10:10:00
+
+---
+
+Sinh vien co co hoi tham gia 1-2 hoc ky tai cac truong dai hoc doi tac o Australia, Nhat Ban va Chau Au voi hoc bong ho tro chi phi sinh hoat. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9. Han nop ho so dang ky dot 1 la ngay 30 thang 9.
