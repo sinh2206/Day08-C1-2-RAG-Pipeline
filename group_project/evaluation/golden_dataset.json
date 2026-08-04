@@ -1,17 +1,92 @@
 [
   {
-    "question": "Học phí hàng năm của chương trình Business tại RMIT Vietnam là bao nhiêu?",
-    "expected_answer": "Khoảng 375.840.000 VND mỗi năm (tùy chương trình cụ thể).",
-    "expected_context": "Trang Tuition Fees, mục Undergraduate Programs"
+    "question": "Tục xông đất đầu năm có ý nghĩa gì?",
+    "expected_answer": "Người đầu tiên bước vào nhà sau giao thừa được tin là mang vận khí, may mắn và tài lộc cho gia đình trong năm mới.",
+    "expected_context": "news/article_01.md - Ý Nghĩa Của Tục Xông Đất"
   },
   {
-    "question": "Học phí được thanh toán theo hình thức nào?",
-    "expected_answer": "Thanh toán theo từng học kỳ, tính theo từng môn học đã đăng ký.",
-    "expected_context": "Trang Tuition Fees, mục Payment Structure"
+    "question": "Gia chủ thường chọn người như thế nào để xông đất?",
+    "expected_answer": "Người xông đất thường được chọn vì hợp tuổi hoặc hợp mệnh, vui vẻ, hòa nhã và có gia đạo êm ấm.",
+    "expected_context": "news/article_01.md - Ý Nghĩa Của Tục Xông Đất"
   },
   {
-    "question": "Trường có cung cấp ký túc xá trong khuôn viên không?",
-    "expected_answer": "Không — trường không cung cấp chỗ ở trong khuôn viên, nhưng có đội ngũ hỗ trợ sinh viên tìm chỗ ở gần trường.",
-    "expected_context": "Trang Accommodation Services"
+    "question": "Vì sao người Việt kiêng quét nhà và đổ rác ngày mùng Một Tết?",
+    "expected_answer": "Dân gian quan niệm quét nhà hoặc đổ rác ngày mùng Một sẽ quét may mắn và tài lộc ra khỏi nhà.",
+    "expected_context": "news/article_01.md - Những Điều Kiêng Kỵ Ngày Mùng 1 Tết"
+  },
+  {
+    "question": "Những điều nào thường được kiêng trong ngày mùng Một Tết?",
+    "expected_answer": "Các điều thường kiêng gồm quét nhà, đổ rác, làm vỡ đồ đạc, vay mượn tiền và mặc toàn màu đen hoặc trắng.",
+    "expected_context": "news/article_01.md - Những Điều Kiêng Kỵ Ngày Mùng 1 Tết"
+  },
+  {
+    "question": "Áo ngũ thân được định hình dưới thời vị chúa Nguyễn nào và vào năm nào?",
+    "expected_answer": "Dáng áo ngũ thân tay chẽn được định hình trong cải cách trang phục của Chúa Nguyễn Phúc Khoát vào năm 1744.",
+    "expected_context": "news/article_02.md - Áo Ngũ Thân Thời Chúa Nguyễn Phúc Khoát"
+  },
+  {
+    "question": "Năm thân của áo ngũ thân tượng trưng cho những giá trị nào?",
+    "expected_answer": "Năm thân áo gắn với ngũ thường Nhân, Lễ, Nghĩa, Trí, Tín và các thành viên hoặc mối quan hệ chính trong gia đình.",
+    "expected_context": "news/article_02.md - Áo Ngũ Thân Thời Chúa Nguyễn Phúc Khoát"
+  },
+  {
+    "question": "Áo ngũ thân nam truyền thống có những chi tiết đặc trưng nào?",
+    "expected_answer": "Áo có cổ đứng, năm thân, năm cúc cài bên phải và phom rộng; thường phối với khăn đóng cùng quần trắng rộng.",
+    "expected_context": "news/article_03.md - Đặc Điểm Áo Ngũ Thân Nam Truyền Thống"
+  },
+  {
+    "question": "Năm cúc của áo dài năm thân được bố trí như thế nào?",
+    "expected_answer": "Năm cúc chạy từ cổ xuống sườn và cài vào các khuyết ở đường nối giữa vạt cả với vạt con.",
+    "expected_context": "legal/Gia-tri-tham-mi-trong-ao-dai.md - Áo dài năm thân"
+  },
+  {
+    "question": "Áo tứ thân truyền thống có cấu tạo và công dụng ra sao?",
+    "expected_answer": "Áo tứ thân có bốn vạt, thường vắt chéo và có thiết kế thuận tiện cho sinh hoạt, lao động đồng ruộng.",
+    "expected_context": "news/article_02.md - Áo Giao Lãnh và Áo Tứ Thân"
+  },
+  {
+    "question": "Ai cải tiến áo ngũ thân thành áo dài Le Mur và vào giai đoạn nào?",
+    "expected_answer": "Họa sĩ Nguyễn Cát Tường, còn gọi là Le Mur, cùng các nghệ sĩ Tự Lực Văn Đoàn thực hiện cải tiến vào thập niên 1930.",
+    "expected_context": "news/article_02.md - Áo Dài Le Mur và Cải Tiến Hiện Đại"
+  },
+  {
+    "question": "Áo dài Le Mur khác áo ngũ thân truyền thống ở điểm nổi bật nào?",
+    "expected_answer": "Le Mur có phom ôm cơ thể và nhiều chi tiết chịu ảnh hưởng phương Tây, trong khi áo ngũ thân truyền thống rộng, cổ đứng và cài năm cúc bên phải.",
+    "expected_context": "news/article_02.md và news/article_03.md"
+  },
+  {
+    "question": "Áo ngũ thân nam được ứng dụng trong đời sống hiện đại vào những dịp nào?",
+    "expected_answer": "Áo được mặc trong dịp lễ Tết, lễ tốt nghiệp, chụp ảnh cưới và các sự kiện văn hóa nghệ thuật.",
+    "expected_context": "news/article_03.md - Ứng Dụng Trong Đời Sống Hiện Đại"
+  },
+  {
+    "question": "Lễ hội Áo dài Huế có vai trò gì trong Festival Huế?",
+    "expected_answer": "Đây là chương trình nghệ thuật trọng điểm, giới thiệu các bộ sưu tập kết hợp hoa văn triều Nguyễn, cảnh sắc cố đô và lụa tơ tằm.",
+    "expected_context": "news/article_04.md - Lễ Hội Áo Dài Trong Kỳ Festival Huế"
+  },
+  {
+    "question": "Đề án Huế - Kinh đô Áo dài khuyến khích những ai mặc áo dài và vào dịp nào?",
+    "expected_answer": "Đề án vận động cán bộ, công chức, viên chức và sinh viên mặc áo dài vào thứ Hai đầu tháng và các dịp lễ lớn.",
+    "expected_context": "news/article_04.md - Đề Án Huế - Kinh Đô Áo Dài"
+  },
+  {
+    "question": "Những yếu tố nào tạo nên giá trị thẩm mỹ của áo dài truyền thống?",
+    "expected_answer": "Giá trị thẩm mỹ được hình thành từ hình dáng, kết cấu, màu sắc, chất liệu và họa tiết trang trí.",
+    "expected_context": "legal/Gia-tri-tham-mi-trong-ao-dai.md - Giá trị thẩm mỹ"
+  },
+  {
+    "question": "Nên giặt và vắt áo dài lụa tơ tằm như thế nào?",
+    "expected_answer": "Nên giặt tay bằng nước lạnh hoặc hơi ấm với chất giặt dịu nhẹ, sau đó ép nước nhẹ và không vắt xoắn.",
+    "expected_context": "news/article_05.md - Bí Quyết Giặt và Vắt"
+  },
+  {
+    "question": "Cách phơi và ủi áo dài lụa tơ tằm để tránh hư hỏng là gì?",
+    "expected_answer": "Phơi nơi thoáng mát, tránh nắng trực tiếp; dùng bàn là hơi nước hoặc ủi mặt trái khi vải còn hơi ẩm.",
+    "expected_context": "news/article_05.md - Mẹo Phơi và Là Áo"
+  },
+  {
+    "question": "Vì sao Huế được xem là chiếc nôi của áo dài Việt Nam?",
+    "expected_answer": "Phú Xuân - Huế là nơi các quy định trang phục và dạng áo năm thân được hình thành, rồi phát triển thành biểu tượng văn hóa áo dài Việt Nam.",
+    "expected_context": "legal/ao-dai-o-Hue.md - Phú Xuân - Huế, chiếc nôi khai sinh của áo dài Việt Nam"
   }
 ]
