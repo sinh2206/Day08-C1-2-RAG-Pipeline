@@ -1,0 +1,8 @@
+# Khai truong Trung tam Thu vien va Khong gian Tu hoc Hien dai
+
+**Source:** https://daihoc.edu.vn/tin-tuc/khai-truong-thu-vien-moi
+**Crawled:** 2026-08-04T10:05:00
+
+---
+
+Trung tam Thu vien moi duoc trang bi hon 50,000 dau sach va phong hoc nhom hien dai phuc vu 24/7 cho sinh vien tra cuu va nghien cuu khoa hoc. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te. Thu vien cung cap truy cap mien phi cac co so du lieu quoc te.
