@@ -29,34 +29,318 @@ Bảng dưới đây tóm tắt các thuật ngữ cốt lõi được sử dụ
 
 Tùy theo số lượng thành viên thực tế của từng nhóm (4, 5 hoặc 6 người), nhóm lựa chọn sơ đồ phân công phù hợp bên dưới:
 
-### 🔹 Phương Án A: Nhóm 4 Thành Viên (Cấu Trúc Chuẩn)
-* **Role 1 (Team Leader & RAG Architect)**: Điều phối tiến độ, ghép code tổng hợp (`supervisor.py` & Task 9).
-* **Role 2 (Data & Retrieval Specialist)**: Phụ trách thu thập, chuẩn hoá dữ liệu (Task 1–3) và xây dựng ChromaDB (Task 4–5).
-* **Role 3 (Frontend & Chatbot Developer)**: Xây dựng giao diện Streamlit `app.py` và nối LLM Generation (Task 10).
-* **Role 4 (Evaluation & QA Engineer)**: Tạo `golden_dataset.json` (15 câu hỏi), thực thi RAGAS `eval_pipeline.py` và viết `results.md`.
+## Nhiệm Vụ Chi Tiết
+
+### Task 1 — Thu Thập Văn Bản Chính Sách Đại Học
+
+Tìm và tải về **tối thiểu 3 văn bản chính sách/quy định** dạng PDF/DOCX về dịch vụ đại học (học phí, học bổng, ký túc xá, đăng ký học phần). Lưu vào `data/landing/`.
+
+**Gợi ý nguồn** (ví dụ trang công khai RMIT Vietnam):
+- Học phí & phương thức thanh toán (Tuition Fees)
+- Chính sách học bổng (Scholarship eligibility)
+- Quy định ký túc xá / hỗ trợ chỗ ở (Accommodation Services)
+- Cổng đăng ký học phần (Course Registration Portal)
+
+**Yêu cầu:**
+- Lưu file gốc (PDF/DOCX) vào `data/landing/legal/`
+- Đặt tên file rõ ràng: `tuition-fees-rmit.pdf`, `academic-achievement-scholarship-rmit.pdf`, ...
 
 ---
 
-### 🔹 Phương Án B: Nhóm 5 Thành Viên (Chuyên Sâu Retrieval)
-Tách phần tìm kiếm (Retrieval) thành 2 vị trí chuyên biệt:
-* **Role 1 (Team Leader & RAG Architect)**: Quản lý chung, ghép code pipeline chính (`supervisor.py` & Task 9).
-* **Role 2 (Data & Dense Search Dev)**: Task 1–3 (Data) + Task 4 (ChromaDB) + Task 5 (Semantic Search & HyDE).
-* **Role 3 (Sparse Search & Advanced Reranking Dev)**: Task 6 (BM25/TF-IDF) + Task 7 (RRF Reranking) + Task 8 (PageIndex Fallback).
-* **Role 4 (Frontend & Chatbot Developer)**: Xây dựng Streamlit Chatbot `app.py` + Task 10 (Generation có Citation).
-* **Role 5 (Evaluation & QA Engineer)**: Bộ câu hỏi `golden_dataset.json` + Đánh giá RAGAS & báo cáo so sánh A/B `results.md`.
+### Task 2 — Crawl Bài Viết/Thông Báo
+
+Crawl **tối thiểu 5 bài viết** về thông tin/thông báo dịch vụ đại học (sự kiện, thư viện, hỗ trợ sinh viên, học bổng).
+
+**Thư viện khuyến nghị:** [Crawl4AI](https://github.com/unclecode/crawl4ai)
+
+**Yêu cầu:**
+- Lưu output vào `data/landing/news/`
+- Mỗi bài báo lưu thành 1 file (JSON hoặc HTML)
+- Ghi rõ metadata: URL gốc, ngày crawl, tiêu đề bài báo
+
+**Code mẫu (Crawl4AI):**
+```python
+from crawl4ai import AsyncWebCrawler
+
+async def crawl_article(url: str, output_dir: str):
+    async with AsyncWebCrawler() as crawler:
+        result = await crawler.arun(url=url)
+        # Lưu result.markdown vào file
+        ...
+```
 
 ---
 
-### 🔹 Phương Án C: Nhóm 6 Thành Viên (Mở Rộng Dữ Liệu & Benchmark)
-Chia nhỏ các công đoạn dữ liệu và kiểm thử chuyên sâu:
-* **Role 1 (Team Leader & RAG Architect)**: Quản lý nhóm, kiến trúc Supervisor và điều phối thuyết trình demo.
-* **Role 2 (Data Engineering & Scraping Dev)**: Phụ trách Task 1 (tải PDF chính sách) + Task 2 (crawl bài viết tin tức) + Task 3 (convert Markdown).
-* **Role 3 (Vector Database & Dense Search Dev)**: Task 4 (Chunking & ChromaDB Indexing) + Task 5 (Semantic Search & HyDE).
-* **Role 4 (Sparse Retrieval & Fallback Dev)**: Task 6 (BM25 / TF-IDF) + Task 7 (RRF Reranking) + Task 8 (PageIndex Fallback).
-* **Role 5 (Frontend UI & App Integration Dev)**: Thiết kế Streamlit Chatbot `app.py` + Task 10 (Citation Generation).
-* **Role 6 (Evaluation & Benchmark QA Dev)**: Xây dựng `golden_dataset.json` mở rộng (20 câu hỏi) + Chạy RAGAS benchmark & viết báo cáo `results.md`.
+### Task 3 — Convert Sang Markdown
+
+Sử dụng [MarkItDown](https://github.com/microsoft/markitdown) của Microsoft để convert toàn bộ file trong `data/landing/` thành Markdown.
+
+**Cài đặt:**
+```bash
+pip install markitdown
+```
+
+**Code mẫu:**
+```python
+from markitdown import MarkItDown
+
+md = MarkItDown()
+
+# Convert PDF
+result = md.convert("data/landing/legal/tuition-fees-rmit.pdf")
+print(result.text_content)
+
+# Convert DOCX
+result = md.convert("data/landing/legal/academic-achievement-scholarship-rmit.docx")
+```
+
+**Lưu ý:** MarkItDown cần cài thêm extra `pip install "markitdown[pdf]"` để convert được file
+PDF — nếu chỉ `pip install markitdown` sẽ báo lỗi `MissingDependencyException` khi convert PDF.
+
+**Yêu cầu:**
+- Output lưu vào `data/standardized/`
+- Giữ nguyên cấu trúc thư mục con (`legal/`, `news/`)
+- Mỗi file output có tên tương ứng: `tuition-fees-rmit.md`
 
 ---
+
+### Task 4 — Chunking & Indexing
+
+Chọn **một loại chunking strategy** và **một embedding model** để index toàn bộ markdown files vào vector store.
+
+**Chunking — khuyến khích dùng [langchain-text-splitters](https://python.langchain.com/docs/modules/data_connection/document_transformers/):**
+```bash
+pip install langchain-text-splitters
+```
+
+Các loại splitter phù hợp:
+- `RecursiveCharacterTextSplitter` (mặc định, an toàn)
+- `MarkdownHeaderTextSplitter` (tốt cho file có heading rõ)
+- `SemanticChunker` (nâng cao, dùng embedding để tách)
+
+**Embedding model gợi ý:**
+- `sentence-transformers/all-MiniLM-L6-v2` (nhẹ, nhanh)
+- `BAAI/bge-m3` (multilingual, tốt cho tiếng Việt)
+- OpenAI `text-embedding-3-small` (nếu có API key)
+
+**Vector Store — sử dụng ChromaDB (Vector Store mặc định của bài lab):**
+```bash
+pip install chromadb
+```
+- ChromaDB lưu trữ vector embeddings (`BAAI/bge-m3`), metadata và thông tin phân đoạn local tại thư mục `chroma_db/`
+- Hỗ trợ truy vấn tìm kiếm tương đồng Cosine (Cosine Similarity Search) phục vụ Dense Retrieval ở Task 5
+
+**Yêu cầu:**
+- Ghi rõ trong code: dùng chunking nào, chunk_size bao nhiêu, overlap bao nhiêu, vì sao
+- Ghi rõ embedding model nào, dimension bao nhiêu
+- Index thành công toàn bộ documents
+
+---
+
+### Task 5 — Semantic Search Module
+
+Viết module thực hiện **semantic search** (dense retrieval) trên vector store.
+
+**Yêu cầu:**
+```python
+def semantic_search(query: str, top_k: int = 10) -> list[dict]:
+    """
+    Returns:
+        List of {'content': str, 'score': float, 'metadata': dict}
+    """
+    ...
+```
+
+- Input: query string + top_k
+- Output: danh sách chunks có score, sorted descending
+- Phải hoạt động được với embedding model đã chọn ở Task 4
+
+---
+
+### Task 6 — Lexical Search Module
+
+Viết module thực hiện **lexical search**. Mặc định sử dụng **BM25**.
+
+```bash
+pip install rank-bm25
+```
+
+**Code mẫu BM25:**
+```python
+from rank_bm25 import BM25Okapi
+
+# Tokenize corpus
+tokenized_corpus = [doc.split() for doc in corpus]
+bm25 = BM25Okapi(tokenized_corpus)
+
+# Search
+tokenized_query = query.split()
+scores = bm25.get_scores(tokenized_query)
+```
+
+**Yêu cầu:**
+```python
+def lexical_search(query: str, top_k: int = 10) -> list[dict]:
+    """
+    Returns:
+        List of {'content': str, 'score': float, 'metadata': dict}
+    """
+    ...
+```
+
+**Bonus:** Nếu dùng phương pháp khác (TF-IDF, Elasticsearch, Weaviate BM25 built-in), hãy giải thích cơ chế hoạt động trong buổi demo → **+5 điểm bonus**.
+
+---
+
+### Task 7 — Reranking Module
+
+Viết module **reranking** để chấm lại độ liên quan của kết quả retrieval.
+
+**Lựa chọn (chọn 1):**
+
+| Phương pháp | Thư viện / Model | Đặc điểm |
+|-------------|-----------------|-----------|
+| Cross-encoder reranker | `jinaai/jina-reranker-v2-base-multilingual` | Multilingual, tốt cho tiếng Việt |
+| Cross-encoder reranker | `Qwen/Qwen3-Reranker-0.6B` | Nhẹ, hiệu quả |
+| MMR (Maximal Marginal Relevance) | Tự implement | Giảm trùng lặp, tăng diversity |
+| RRF (Reciprocal Rank Fusion) | Tự implement | Gộp kết quả từ nhiều ranker |
+
+**Code mẫu (Jina Reranker via API):**
+```python
+import requests
+
+def rerank(query: str, documents: list[str], top_k: int = 5) -> list[dict]:
+    response = requests.post(
+        "https://api.jina.ai/v1/rerank",
+        headers={"Authorization": "Bearer YOUR_API_KEY"},
+        json={
+            "model": "jina-reranker-v2-base-multilingual",
+            "query": query,
+            "documents": documents,
+            "top_n": top_k
+        }
+    )
+    return response.json()["results"]
+```
+
+**Yêu cầu:**
+```python
+def rerank(query: str, candidates: list[dict], top_k: int = 5) -> list[dict]:
+    """
+    Re-score and re-order candidates based on relevance to query.
+    """
+    ...
+```
+
+---
+
+### Task 8 — PageIndex Vectorless RAG
+
+Đăng ký tài khoản tại [https://pageindex.ai/](https://pageindex.ai/), sau đó sử dụng [PageIndex SDK](https://github.com/VectifyAI/PageIndex) để tạo một **vectorless RAG pipeline**.
+
+**Cài đặt:**
+```bash
+pip install pageindex
+```
+
+**Tham khảo:** [https://github.com/VectifyAI/PageIndex](https://github.com/VectifyAI/PageIndex)
+
+**Yêu cầu:**
+- Upload tài liệu lên PageIndex
+- Viết function query PageIndex và trả về kết quả
+```python
+def pageindex_search(query: str, top_k: int = 5) -> list[dict]:
+    """
+    Vectorless retrieval using PageIndex.
+    Fallback khi hybrid search không trả về kết quả phù hợp.
+    """
+    ...
+```
+
+---
+
+### Task 9 — Retrieval Pipeline Hoàn Chỉnh
+
+Kết hợp tất cả modules thành một **retrieval pipeline** thống nhất với logic fallback:
+
+```
+Query
+  │
+  ├─→ Semantic Search (Task 5)  ──┐
+  │                                ├─→ Merge + Rerank (Task 7) → Results
+  ├─→ Lexical Search (Task 6)  ──┘
+  │
+  └─→ Nếu hybrid search không có kết quả đủ tốt (score < threshold)
+        └─→ Fallback: PageIndex Vectorless (Task 8)
+```
+
+**Yêu cầu:**
+```python
+def retrieve(query: str, top_k: int = 5, score_threshold: float = 0.3) -> list[dict]:
+    """
+    1. Chạy semantic_search + lexical_search
+    2. Merge kết quả (RRF hoặc weighted fusion)
+    3. Rerank
+    4. Nếu top result score < threshold → fallback PageIndex
+    5. Return top_k results
+    """
+    ...
+```
+
+> ⚠️ **Bẫy thường gặp:** nếu dùng RRF để merge (`RRF(d) = Σ 1/(k+rank)`, k=60), điểm số kết quả
+> sau khi fuse **chỉ phụ thuộc thứ hạng**, không phản ánh độ liên quan thực sự — top-1 luôn
+> xấp xỉ `1/(k+1) ≈ 0.016` dù nội dung có liên quan hay không. Nếu so `score_threshold` với
+> điểm RRF đã fuse, fallback gần như **không bao giờ trigger** được (kể cả với query hoàn toàn
+> lạc đề). Hãy so `score_threshold` với **điểm cosine similarity gốc** từ `semantic_search`
+> (Task 5, thang đo `[0,1]` có ý nghĩa) — tách riêng khỏi điểm dùng để sắp xếp kết quả cuối cùng.
+
+
+
+---
+
+### Task 10 — Generation Có Citation
+
+Sắp xếp lại context chunks sau reranking để **tránh lost in the middle**, inject vào prompt, và yêu cầu LLM trả lời có **citation**.
+
+**Document Reordering (tránh lost in the middle):**
+```python
+def reorder_for_llm(chunks: list[dict]) -> list[dict]:
+    """
+    Sắp xếp chunks theo pattern: quan trọng nhất ở đầu và cuối,
+    ít quan trọng hơn ở giữa.
+    Ví dụ: [1, 3, 5, 4, 2] thay vì [1, 2, 3, 4, 5]
+    """
+    ...
+```
+
+**Prompt template:**
+```python
+SYSTEM_PROMPT = """Answer the following question comprehensively.
+For every statement of fact or claim, immediately insert a citation
+in brackets linking to the specific source
+(e.g., [Author/Platform Name, Year]).
+If the information is not explicitly stated in the provided context
+or knowledge base, state 'I cannot verify this information'
+rather than guessing."""
+
+def generate_with_citation(query: str, context_chunks: list[dict]) -> str:
+    """
+    1. Reorder chunks để tránh lost in the middle
+    2. Format context với source metadata
+    3. Inject vào prompt với SYSTEM_PROMPT
+    4. Gọi LLM (OpenAI, Gemini, hoặc local model)
+    5. Return answer có citation
+    """
+    ...
+```
+
+**Yêu cầu:**
+- Chọn top_k và top_p phù hợp (giải thích lý do trong code comment)
+- Output phải có citation dạng `[Nguồn, Năm]`
+- Nếu không đủ evidence → trả về "I cannot verify this information"
+
+---
+
 
 ## 🎯 3. Phân Công Vai Trò & Công Việc Theo Từng Checkpoint
 
