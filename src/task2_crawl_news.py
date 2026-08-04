@@ -7,14 +7,15 @@ from datetime import datetime, timezone
 from crawl4ai import AsyncWebCrawler
 
 OUTPUT_DIR = "data/landing/news"
+MIN_CONTENT_LENGTH = 200  
+DELAY_BETWEEN_REQUESTS = 2  
 
-# TODO: Thay bằng 5+ URL thật về phong tục / trang phục / lễ hội truyền thống
 URLS = [
     "http://dulichphutho.gov.vn/diemden/le-hoi-den-hung",
     "https://trangphuchonghanh.com/y-nghia-cua-bo-ao-dai-truyen-thong-viet-nam-bid33.html",
     "https://www.bachhoaxanh.com/kinh-nghiem-hay/tet-trung-thu-2022-vao-ngay-nao-y-nghia-nguon-goc-ngay-tet-trung-thu-1179527",
     "https://www.bachhoaxanh.com/kinh-nghiem-hay/le-hoi-chua-huong-o-dau-dien-ra-khi-nao-nguon-goc-y-nghia-1495188",
-    "https://cardina.vn/blogs/kien-thuc-thoi-trang/ao-tu-than?srsltid=AfmBOorigYd9cKEMAPRFQvsiLA0tNFizFHOg_74nceJFwKxsv3My_oJD",
+    "https://cardina.vn/blogs/kien-thuc-thoi-trang/ao-tu-than",
 ]
 
 
@@ -28,19 +29,31 @@ def slugify(title: str, fallback: str) -> str:
     return slug or fallback
 
 
+def extract_title(result) -> str:
+    """Lấy title an toàn, tránh crash nếu metadata là None hoặc thiếu key."""
+    metadata = getattr(result, "metadata", None)
+    if metadata and isinstance(metadata, dict):
+        return metadata.get("title", "") or ""
+    return ""
+
+
 async def crawl_article(crawler: AsyncWebCrawler, url: str, index: int) -> dict:
     """Crawl 1 URL, trả về dict metadata + nội dung markdown."""
     result = await crawler.arun(url=url)
 
-    title = getattr(result, "metadata", {}).get("title", "") if result.metadata else ""
-    fname_base = slugify(title, f"article-{index}")
+    title = extract_title(result)
+    fname_base = f"{index:02d}-{slugify(title, f'article-{index}')}"
+
+    content = result.markdown or ""
+    is_success = bool(result.success) and len(content.strip()) >= MIN_CONTENT_LENGTH
 
     record = {
         "url": url,
         "title": title,
         "crawl_date": datetime.now(timezone.utc).isoformat(),
-        "content_markdown": result.markdown,
-        "success": result.success,
+        "content_markdown": content,
+        "content_length": len(content.strip()),
+        "success": is_success,
     }
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -48,7 +61,8 @@ async def crawl_article(crawler: AsyncWebCrawler, url: str, index: int) -> dict:
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
 
-    print(f"[{'OK' if result.success else 'FAIL'}] {url} -> {out_path}")
+    status = "OK" if is_success else "WEAK/FAIL"
+    print(f"[{status}] {url} -> {out_path} ({len(content.strip())} ký tự)")
     return record
 
 
@@ -63,8 +77,13 @@ async def main():
             except Exception as e:
                 print(f"[ERROR] {url}: {e}")
 
+            if i < len(URLS):
+                await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
+
     ok_count = sum(1 for r in results if r.get("success"))
-    print(f"\nHoàn tất: {ok_count}/{len(URLS)} bài crawl thành công.")
+    print(f"\nHoàn tất: {ok_count}/{len(URLS)} bài crawl thành công thật sự (đủ nội dung).")
+    if ok_count < 5:
+        print("⚠️  Chưa đủ 5 bài đạt yêu cầu — kiểm tra file .json để xem trang nào bị crawl rỗng/yếu.")
 
 
 if __name__ == "__main__":
