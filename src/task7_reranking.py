@@ -14,7 +14,65 @@ bất kể nội dung đó có thật sự liên quan đến câu hỏi hay khô
 quyết định fallback ở Task 9 — xem ghi chú ở đó.
 """
 
-from typing import Optional
+from functools import lru_cache
+from math import sqrt
+from typing import Any
+
+
+CROSS_ENCODER_MODEL = "BAAI/bge-reranker-v2-m3"
+
+
+def _validate_top_k(top_k: int) -> None:
+    if not isinstance(top_k, int) or isinstance(top_k, bool):
+        raise TypeError("top_k must be an integer")
+    if top_k < 0:
+        raise ValueError("top_k must be non-negative")
+
+
+def _cosine_similarity(vector_a: list[float], vector_b: list[float]) -> float:
+    """Compute cosine similarity without requiring NumPy."""
+    if len(vector_a) != len(vector_b):
+        raise ValueError(
+            f"Embedding dimensions do not match: {len(vector_a)} != {len(vector_b)}"
+        )
+    if not vector_a:
+        raise ValueError("Embeddings must not be empty")
+
+    dot_product = sum(float(a) * float(b) for a, b in zip(vector_a, vector_b))
+    norm_a = sqrt(sum(float(value) ** 2 for value in vector_a))
+    norm_b = sqrt(sum(float(value) ** 2 for value in vector_b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot_product / (norm_a * norm_b)
+
+
+def _candidate_key(candidate: dict) -> tuple:
+    """Build a stable identity for deduplicating results across rankers."""
+    if candidate.get("id") is not None:
+        return ("id", str(candidate["id"]))
+
+    metadata = candidate.get("metadata") or {}
+    if isinstance(metadata, dict) and metadata.get("source") is not None:
+        return (
+            "source",
+            str(metadata["source"]),
+            str(metadata.get("chunk_index", "")),
+            str(candidate.get("content", "")),
+        )
+    return ("content", str(candidate.get("content", "")))
+
+
+@lru_cache(maxsize=1)
+def _get_cross_encoder() -> Any:
+    try:
+        from sentence_transformers import CrossEncoder
+    except ImportError as exc:
+        raise ImportError(
+            "Cross-encoder reranking requires sentence-transformers. "
+            "Install the dependencies from requirements.txt."
+        ) from exc
+
+    return CrossEncoder(CROSS_ENCODER_MODEL)
 
 
 def rerank_cross_encoder(
@@ -31,30 +89,38 @@ def rerank_cross_encoder(
     Returns:
         List of top_k candidates, re-scored và sorted by rerank_score descending.
     """
-    # TODO: Implement cross-encoder reranking
-    #
-    # Option A: Jina Reranker API
-    # import requests
-    # response = requests.post(
-    #     "https://api.jina.ai/v1/rerank",
-    #     headers={"Authorization": f"Bearer {JINA_API_KEY}"},
-    #     json={
-    #         "model": "jina-reranker-v2-base-multilingual",
-    #         "query": query,
-    #         "documents": [c["content"] for c in candidates],
-    #         "top_n": top_k
-    #     }
-    # )
-    # reranked = response.json()["results"]
-    # return [
-    #     {**candidates[r["index"]], "score": r["relevance_score"]}
-    #     for r in reranked
-    # ]
-    #
-    # Option B: Local model (Qwen3-Reranker)
-    # from transformers import AutoModelForSequenceClassification, AutoTokenizer
-    # ...
-    raise NotImplementedError("Implement rerank_cross_encoder")
+    _validate_top_k(top_k)
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("query must be a non-empty string")
+    if top_k == 0 or not candidates:
+        return []
+
+    pairs = []
+    for index, candidate in enumerate(candidates):
+        content = candidate.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError(f"Candidate {index} must contain non-empty string content")
+        pairs.append((query, content))
+
+    raw_scores = _get_cross_encoder().predict(pairs, show_progress_bar=len(pairs) > 1)
+    if len(raw_scores) != len(candidates):
+        raise RuntimeError("Cross-encoder returned an unexpected number of scores")
+
+    scored = []
+    for original_index, (candidate, raw_score) in enumerate(zip(candidates, raw_scores)):
+        if hasattr(raw_score, "tolist"):
+            raw_score = raw_score.tolist()
+        if isinstance(raw_score, (list, tuple)):
+            if len(raw_score) != 1:
+                raise ValueError("Cross-encoder must return one score per candidate")
+            raw_score = raw_score[0]
+        scored.append((float(raw_score), original_index, candidate))
+
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    return [
+        {**candidate, "score": score}
+        for score, _, candidate in scored[:top_k]
+    ]
 
 
 def rerank_mmr(
@@ -77,37 +143,54 @@ def rerank_mmr(
     Returns:
         List of top_k candidates selected by MMR.
     """
-    # TODO: Implement MMR
-    #
-    # selected = []
-    # remaining = list(range(len(candidates)))
-    #
-    # for _ in range(min(top_k, len(candidates))):
-    #     best_idx = None
-    #     best_score = float('-inf')
-    #
-    #     for idx in remaining:
-    #         # Relevance to query
-    #         relevance = cosine_sim(query_embedding, candidates[idx]["embedding"])
-    #
-    #         # Max similarity to already selected
-    #         max_sim_to_selected = 0
-    #         for sel_idx in selected:
-    #             sim = cosine_sim(candidates[idx]["embedding"], candidates[sel_idx]["embedding"])
-    #             max_sim_to_selected = max(max_sim_to_selected, sim)
-    #
-    #         # MMR score
-    #         mmr_score = lambda_param * relevance - (1 - lambda_param) * max_sim_to_selected
-    #
-    #         if mmr_score > best_score:
-    #             best_score = mmr_score
-    #             best_idx = idx
-    #
-    #     selected.append(best_idx)
-    #     remaining.remove(best_idx)
-    #
-    # return [candidates[i] for i in selected]
-    raise NotImplementedError("Implement rerank_mmr")
+    _validate_top_k(top_k)
+    if not 0.0 <= lambda_param <= 1.0:
+        raise ValueError("lambda_param must be between 0.0 and 1.0")
+    if top_k == 0 or not candidates:
+        return []
+    if not query_embedding:
+        raise ValueError("query_embedding must not be empty")
+
+    candidate_embeddings = []
+    for index, candidate in enumerate(candidates):
+        embedding = candidate.get("embedding")
+        if not isinstance(embedding, (list, tuple)) or not embedding:
+            raise ValueError(f"Candidate {index} has no embedding")
+        vector = [float(value) for value in embedding]
+        if len(vector) != len(query_embedding):
+            raise ValueError(
+                f"Candidate {index} embedding dimension does not match the query"
+            )
+        candidate_embeddings.append(vector)
+
+    selected: list[int] = []
+    selected_scores: list[float] = []
+    remaining = list(range(len(candidates)))
+
+    for _ in range(min(top_k, len(candidates))):
+        best_index = remaining[0]
+        best_score = float("-inf")
+        for index in remaining:
+            relevance = _cosine_similarity(query_embedding, candidate_embeddings[index])
+            redundancy = 0.0
+            if selected:
+                redundancy = max(
+                    _cosine_similarity(candidate_embeddings[index], candidate_embeddings[chosen])
+                    for chosen in selected
+                )
+            mmr_score = lambda_param * relevance - (1.0 - lambda_param) * redundancy
+            if mmr_score > best_score:
+                best_index = index
+                best_score = mmr_score
+
+        selected.append(best_index)
+        selected_scores.append(best_score)
+        remaining.remove(best_index)
+
+    return [
+        {**candidates[index], "score": score}
+        for index, score in zip(selected, selected_scores)
+    ]
 
 
 def rerank_rrf(
@@ -126,28 +209,49 @@ def rerank_rrf(
     Returns:
         List of top_k candidates sorted by RRF score descending.
     """
-    # TODO: Implement RRF
-    #
-    # rrf_scores = {}  # content -> score
-    # content_map = {}  # content -> full dict
-    #
-    # for ranked_list in ranked_lists:
-    #     for rank, item in enumerate(ranked_list, 1):
-    #         key = item["content"]
-    #         rrf_scores[key] = rrf_scores.get(key, 0) + 1 / (k + rank)
-    #         content_map[key] = item
-    #
-    # # Sort by RRF score
-    # sorted_items = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
-    #
-    # results = []
-    # for content, score in sorted_items[:top_k]:
-    #     item = content_map[content].copy()
-    #     item["score"] = score
-    #     results.append(item)
-    #
-    # return results
-    raise NotImplementedError("Implement rerank_rrf")
+    _validate_top_k(top_k)
+    if not isinstance(k, int) or isinstance(k, bool):
+        raise TypeError("k must be an integer")
+    if k < 0:
+        raise ValueError("k must be non-negative")
+    if top_k == 0 or not ranked_lists:
+        return []
+
+    scores: dict[tuple, float] = {}
+    candidates_by_key: dict[tuple, dict] = {}
+    best_rank: dict[tuple, int] = {}
+    discovery_order: dict[tuple, int] = {}
+
+    for ranked_list in ranked_lists:
+        seen_in_list = set()
+        for rank, candidate in enumerate(ranked_list, start=1):
+            if not isinstance(candidate, dict):
+                raise TypeError("Every ranked result must be a dictionary")
+            content = candidate.get("content")
+            if not isinstance(content, str) or not content:
+                raise ValueError("Every ranked result must contain non-empty content")
+
+            key = _candidate_key(candidate)
+            if key in seen_in_list:
+                continue
+            seen_in_list.add(key)
+
+            if key not in candidates_by_key:
+                candidates_by_key[key] = candidate
+                discovery_order[key] = len(discovery_order)
+                best_rank[key] = rank
+            else:
+                best_rank[key] = min(best_rank[key], rank)
+            scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank)
+
+    ordered_keys = sorted(
+        scores,
+        key=lambda key: (-scores[key], best_rank[key], discovery_order[key]),
+    )
+    return [
+        {**candidates_by_key[key], "score": scores[key]}
+        for key in ordered_keys[:top_k]
+    ]
 
 
 # =============================================================================
@@ -172,14 +276,56 @@ def rerank(
     Returns:
         List of top_k reranked candidates.
     """
-    if method == "cross_encoder":
+    _validate_top_k(top_k)
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("query must be a non-empty string")
+    if top_k == 0 or not candidates:
+        return []
+
+    normalized_method = method.strip().lower() if isinstance(method, str) else method
+    if normalized_method == "cross_encoder":
         return rerank_cross_encoder(query, candidates, top_k)
-    elif method == "mmr":
-        # Cần query_embedding - embed query trước
-        raise NotImplementedError("Call rerank_mmr with query_embedding")
-    elif method == "rrf":
-        # RRF cần nhiều ranked lists - gọi riêng
-        raise NotImplementedError("Call rerank_rrf with ranked_lists")
+    elif normalized_method == "mmr":
+        try:
+            from .task4_chunking_indexing import get_embedding_model
+        except ImportError:
+            from task4_chunking_indexing import get_embedding_model
+
+        prepared_candidates = [dict(candidate) for candidate in candidates]
+        missing_indices = [
+            index
+            for index, candidate in enumerate(prepared_candidates)
+            if not candidate.get("embedding")
+        ]
+        texts = [query]
+        for index in missing_indices:
+            content = prepared_candidates[index].get("content")
+            if not isinstance(content, str) or not content.strip():
+                raise ValueError(f"Candidate {index} must contain non-empty string content")
+            texts.append(content)
+
+        encoded = get_embedding_model().encode(
+            texts,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        if len(encoded) != len(texts):
+            raise RuntimeError("Embedding model returned an unexpected number of vectors")
+
+        def to_vector(value: Any) -> list[float]:
+            if hasattr(value, "tolist"):
+                value = value.tolist()
+            return [float(component) for component in value]
+
+        query_embedding = to_vector(encoded[0])
+        for encoded_position, candidate_index in enumerate(missing_indices, start=1):
+            prepared_candidates[candidate_index]["embedding"] = to_vector(
+                encoded[encoded_position]
+            )
+
+        return rerank_mmr(query_embedding, prepared_candidates, top_k=top_k)
+    elif normalized_method == "rrf":
+        return rerank_rrf([candidates], top_k=top_k)
     else:
         raise ValueError(f"Unknown rerank method: {method}")
 
